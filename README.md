@@ -173,7 +173,7 @@ git --version
 
 ```bash
 # Clone repository
-git clone https://github.com/Vash-666/-tennis-trophy-tokenization.git
+git clone https://github.com/Vash-666/-Rwa-trophy-token.git
 cd tennis-trophy-tokenization
 
 # Install dependencies
