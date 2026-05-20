@@ -130,7 +130,7 @@ export default function Home() {
               </div>
             </motion.div>
 
-            {/* Right Content - Trophy Card */}
+            {/* Right Content - Real Trophy Image */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -138,24 +138,36 @@ export default function Home() {
               className="relative"
             >
               <div className="absolute inset-0 bg-[#C9A84C]/20 blur-3xl rounded-full scale-75" />
-              <div className="relative card card-hover">
-                <div className="aspect-square bg-gradient-to-br from-[#1a1f2e] to-[#0C0F1A] flex items-center justify-center relative overflow-hidden">
-                  {/* Decorative rings */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-64 h-64 rounded-full border border-[#C9A84C]/10" />
-                    <div className="absolute w-48 h-48 rounded-full border border-[#C9A84C]/20" />
-                    <div className="absolute w-32 h-32 rounded-full border border-[#C9A84C]/30" />
-                  </div>
-                  <Trophy className="w-40 h-40 text-[#C9A84C] relative z-10" />
+              <div className="relative card card-hover overflow-hidden">
+                {/* Trophy Image */}
+                <div className="aspect-[4/5] relative overflow-hidden">
+                  <img 
+                    src="/trophy-photo.jpg" 
+                    alt="1947 Ladies Doubles Championship Shield - 77 years of engraved champions"
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0C0F1A] via-transparent to-transparent opacity-80" />
+                  
+                  {/* Est. Badge */}
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute top-4 right-4 bg-[#C9A84C] text-[#0C0F1A] px-4 py-2 rounded-full font-bold text-sm"
+                  >
+                    Est. 1947
+                  </motion.div>
                 </div>
-                <div className="p-6 space-y-4">
+                
+                {/* Trophy Info */}
+                <div className="p-6 space-y-4 bg-[#0C0F1A]">
                   <div className="flex items-center justify-between">
                     <span className="text-[#F5F1E8]/60">Year Established</span>
                     <span className="text-[#F5F1E8] font-semibold">1947</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[#F5F1E8]/60">Material</span>
-                    <span className="text-[#F5F1E8] font-semibold">Silver & Hardwood</span>
+                    <span className="text-[#F5F1E8] font-semibold">Silverplate & Hardwood</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[#F5F1E8]/60">Total Winners</span>

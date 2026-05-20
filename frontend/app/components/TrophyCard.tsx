@@ -73,9 +73,13 @@ export default function TrophyCard({ tokenId, demoTrophy, viewMode = 'grid' }: T
     return (
       <Link href={`/trophy-detail`}>
         <div className="card card-hover p-4 flex items-center gap-6 group">
-          {/* Image */}
-          <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-[#1a1f2e] to-[#0C0F1A] flex items-center justify-center shrink-0">
-            <Trophy className="w-10 h-10 text-[#C9A84C]/50 group-hover:text-[#C9A84C] transition-colors" />
+          {/* Trophy Image */}
+          <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0">
+            <img 
+              src="/trophy-photo.jpg" 
+              alt={trophy.data.name}
+              className="w-full h-full object-cover"
+            />
           </div>
           
           {/* Content */}
@@ -122,9 +126,13 @@ export default function TrophyCard({ tokenId, demoTrophy, viewMode = 'grid' }: T
   return (
     <Link href={`/trophy-detail`}>
       <div className="card card-hover group h-full flex flex-col">
-        {/* Image */}
-        <div className="aspect-square bg-gradient-to-br from-[#1a1f2e] to-[#0C0F1A] flex items-center justify-center relative overflow-hidden">
-          <Trophy className="w-24 h-24 text-[#C9A84C]/30 group-hover:text-[#C9A84C]/50 group-hover:scale-110 transition-all duration-500" />
+        {/* Trophy Image */}
+        <div className="aspect-square relative overflow-hidden">
+          <img 
+            src="/trophy-photo.jpg" 
+            alt={trophy.data.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
           
           {/* Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0C0F1A] via-transparent to-transparent opacity-60" />
