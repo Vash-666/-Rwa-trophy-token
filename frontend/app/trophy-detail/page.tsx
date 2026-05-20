@@ -73,11 +73,16 @@ export default function TrophyDetail() {
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
-              <div className="relative aspect-square rounded-3xl overflow-hidden bg-gradient-to-br from-[#141827] to-[#0C0F1A] border border-[#2a3142]">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Trophy className="w-48 h-48 text-[#C9A84C]/30" />
-                </div>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#C9A84C]/10 to-transparent" />
+              <div className="relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br from-[#141827] to-[#0C0F1A] border border-[#2a3142]">
+                {/* Real Trophy Image */}
+                <img 
+                  src="/trophy-photo.jpg" 
+                  alt="1947 Ladies Doubles Championship Shield"
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0C0F1A]/80 via-transparent to-transparent" />
                 
                 {/* Badge */}
                 <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/50">
@@ -86,16 +91,25 @@ export default function TrophyDetail() {
                     Verified Authentic
                   </span>
                 </div>
+                
+                {/* Year Badge */}
+                <div className="absolute top-4 right-4 px-4 py-2 rounded-full bg-[#C9A84C] text-[#0C0F1A] font-bold text-sm">
+                  Est. 1947
+                </div>
               </div>
 
-              {/* Thumbnail Gallery */}
+              {/* Thumbnail Gallery - All showing same trophy */}
               <div className="grid grid-cols-4 gap-3">
                 {[1, 2, 3, 4].map((i) => (
                   <button
                     key={i}
-                    className="aspect-square rounded-xl bg-[#141827] border border-[#2a3142] hover:border-[#C9A84C]/50 transition-all flex items-center justify-center"
+                    className="aspect-square rounded-xl overflow-hidden bg-[#141827] border border-[#2a3142] hover:border-[#C9A84C]/50 transition-all"
                   >
-                    <Trophy className="w-8 h-8 text-[#C9A84C]/30" />
+                    <img 
+                      src="/trophy-photo.jpg" 
+                      alt={`Trophy view ${i}`}
+                      className="w-full h-full object-cover opacity-70 hover:opacity-100 transition-opacity"
+                    />
                   </button>
                 ))}
               </div>
