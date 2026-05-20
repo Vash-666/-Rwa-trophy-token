@@ -280,11 +280,27 @@ This project demonstrates expertise in:
 - [x] Deployment pipeline
 - [x] Documentation
 
-### Phase 7: Frontend dApp (In Progress)
-- [ ] Next.js frontend
-- [ ] Wallet integration (wagmi)
-- [ ] Trophy gallery
-- [ ] Transfer interface
+### Phase 7: Frontend dApp ✅
+- [x] Next.js 14 frontend with App Router
+- [x] RainbowKit + wagmi wallet integration
+- [x] Trophy gallery (Facebook Marketplace style)
+- [x] Trophy detail page with provenance
+- [x] Transfer interface
+- [x] Mobile responsive design
+- [x] Dark theme with tennis-green accents
+
+**Frontend Location:** `/frontend/` directory
+
+**Quick Start:**
+```bash
+cd frontend
+cp .env.local.example .env.local
+# Edit .env.local with your contract address and WalletConnect Project ID
+npm install
+npm run dev
+```
+
+See [frontend/README.md](frontend/README.md) for detailed setup instructions.
 
 ### Phase 8: RWA Integration (Planned)
 - [ ] Physical custody documentation
