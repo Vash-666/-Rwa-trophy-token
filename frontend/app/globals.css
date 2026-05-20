@@ -214,3 +214,72 @@
 .pulse-gold {
   animation: pulse-gold 2s infinite;
 }
+
+/* Lightbox Styles */
+.lightbox-overlay {
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.lightbox-image {
+  @apply max-w-[90vw] max-h-[85vh] object-contain select-none;
+  will-change: transform;
+}
+
+/* Trophy Region Overlay Styles */
+.trophy-region {
+  @apply cursor-pointer transition-all duration-300;
+}
+
+.trophy-region:hover {
+  filter: drop-shadow(0 0 12px currentColor);
+}
+
+.trophy-region.active {
+  animation: regionPulse 2s ease-in-out infinite;
+}
+
+@keyframes regionPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  50% {
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 20px currentColor);
+  }
+}
+
+/* Pointer Line Animation */
+.pointer-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawLine 0.5s ease-out forwards;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .trophy-region.active,
+  .pulse-gold,
+  .pointer-line,
+  .lightbox-image {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hardware Acceleration */
+.will-change-transform {
+  will-change: transform;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

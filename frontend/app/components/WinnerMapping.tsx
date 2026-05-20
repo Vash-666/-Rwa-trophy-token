@@ -1,29 +1,37 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, ChevronLeft, ChevronRight, Play, Pause, Search, Info } from 'lucide-react';
+import { Trophy, ChevronLeft, ChevronRight, Play, Pause, Search, Info, Sparkles } from 'lucide-react';
 import { TROPHY_ERAS, Winner, searchWinners } from '../lib/winners';
+import TrophyRegionOverlay, { TROPHY_REGIONS } from './TrophyRegionOverlay';
+import PointerLine from './PointerLine';
+import { useTrophyInteraction } from '../hooks/useTrophyInteraction';
 
 interface WinnerMappingProps {
   className?: string;
 }
 
-// SVG coordinates for winner regions on the trophy
-// These are approximate positions for the 4 quadrants
-const REGION_COORDS = {
-  genesis: { x: 25, y: 25, width: 40, height: 40, labelX: 15, labelY: 15 },
-  golden: { x: 65, y: 25, width: 40, height: 40, labelX: 85, labelY: 15 },
-  modern: { x: 25, y: 65, width: 40, height: 40, labelX: 15, labelY: 85 },
-  contemporary: { x: 65, y: 65, width: 40, height: 40, labelX: 85, labelY: 85 },
-};
-
 export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
   const [activeEra, setActiveEra] = useState<string>('genesis');
-  const [selectedWinner, setSelectedWinner] = useState<Winner | null>(null);
   const [isAutoRotating, setIsAutoRotating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [hoveredEra, setHoveredEra] = useState<string | null>(null);
+  
+  const winnerListRef = useRef<HTMLDivElement>(null);
+  const eraTabsRef = useRef<HTMLDivElement>(null);
+
+  const {
+    activeRegion,
+    highlightedRegion,
+    selectedWinner,
+    pointerLine,
+    trophyImageRef,
+    handleRegionClick,
+    handleRegionHover,
+    handleWinnerClick,
+    handleEraClick,
+    getRegionByEra
+  } = useTrophyInteraction({ highlightDuration: 3000 });
 
   const currentEra = TROPHY_ERAS.find(e => e.id === activeEra) || TROPHY_ERAS[0];
   const searchResults = searchQuery ? searchWinners(searchQuery) : [];
@@ -43,37 +51,73 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
     return () => clearInterval(interval);
   }, [isAutoRotating]);
 
-  const handleEraClick = useCallback((eraId: string) => {
+  const onEraClick = useCallback((eraId: string, e?: React.MouseEvent) => {
     setActiveEra(eraId);
-    setSelectedWinner(null);
     setIsAutoRotating(false);
-  }, []);
+    
+    // Trigger trophy region highlight
+    const element = e?.currentTarget as HTMLElement;
+    handleEraClick(eraId, element || null);
+  }, [handleEraClick]);
 
-  const handleWinnerClick = useCallback((winner: Winner) => {
-    setSelectedWinner(winner);
+  const onWinnerClick = useCallback((winner: Winner, e: React.MouseEvent) => {
     const era = TROPHY_ERAS.find(e => winner.year >= e.yearStart && winner.year <= e.yearEnd);
-    if (era) setActiveEra(era.id);
-  }, []);
+    if (era) {
+      setActiveEra(era.id);
+      const element = e.currentTarget as HTMLElement;
+      handleWinnerClick(winner.year, era.id, element);
+    }
+  }, [handleWinnerClick]);
 
   const navigateEra = (direction: 'prev' | 'next') => {
     const currentIndex = TROPHY_ERAS.findIndex(e => e.id === activeEra);
     const newIndex = direction === 'next' 
       ? (currentIndex + 1) % TROPHY_ERAS.length
       : (currentIndex - 1 + TROPHY_ERAS.length) % TROPHY_ERAS.length;
-    setActiveEra(TROPHY_ERAS[newIndex].id);
-    setSelectedWinner(null);
+    const newEraId = TROPHY_ERAS[newIndex].id;
+    setActiveEra(newEraId);
+    setIsAutoRotating(false);
+    
+    // Trigger highlight
+    const eraTab = eraTabsRef.current?.querySelector(`[data-era="${newEraId}"]`) as HTMLElement;
+    if (eraTab) {
+      handleEraClick(newEraId, eraTab);
+    }
+  };
+
+  const getEraColor = (eraId: string) => {
+    const region = TROPHY_REGIONS.find(r => r.era === eraId);
+    return region?.highlight.color || '#C9A84C';
   };
 
   return (
     <div className={`${className}`}>
+      {/* Pointer Line Animation */}
+      <PointerLine
+        startElement={pointerLine.startElement}
+        endElement={trophyImageRef.current}
+        color={pointerLine.color}
+        isVisible={pointerLine.isVisible}
+      />
+
       {/* Header */}
       <div className="text-center mb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/30 mb-4"
+        >
+          <Sparkles className="w-4 h-4 text-[#C9A84C]" />
+          <span className="text-[#C9A84C] text-sm font-medium">Interactive Experience</span>
+        </motion.div>
+        
         <h2 className="text-3xl lg:text-4xl font-bold text-gradient-gold font-['Playfair_Display'] mb-4">
           Interactive Winner History
         </h2>
         <p className="text-[#F5F1E8]/70 max-w-2xl mx-auto">
-          Explore 77+ years of champions. Click on any era to see the winners, 
-          or search for a specific year or champion name.
+          Explore 77+ years of champions. Click on any era or winner to see the corresponding 
+          section highlighted on the trophy. The connection between history and artifact comes alive.
         </p>
       </div>
 
@@ -111,16 +155,28 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
                 Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
               </p>
               <div className="space-y-2">
-                {searchResults.map((winner) => (
-                  <button
-                    key={winner.year}
-                    onClick={() => handleWinnerClick(winner)}
-                    className="w-full text-left p-3 rounded-lg bg-[#0C0F1A] hover:bg-[#C9A84C]/10 border border-[#2a3142] hover:border-[#C9A84C]/30 transition-all"
-                  >
-                    <span className="text-[#C9A84C] font-semibold">{winner.year}</span>
-                    <span className="text-[#F5F1E8] ml-3">{winner.names.join(' & ')}</span>
-                  </button>
-                ))}
+                {searchResults.map((winner) => {
+                  const era = TROPHY_ERAS.find(e => winner.year >= e.yearStart && winner.year <= e.yearEnd);
+                  const region = getRegionByEra(era?.id || '');
+                  return (
+                    <button
+                      key={winner.year}
+                      onClick={(e) => onWinnerClick(winner, e)}
+                      className="w-full text-left p-3 rounded-lg bg-[#0C0F1A] hover:bg-[#C9A84C]/10 border border-[#2a3142] hover:border-[#C9A84C]/30 transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span 
+                          className="text-sm font-bold w-12"
+                          style={{ color: region?.highlight.color || '#C9A84C' }}
+                        >
+                          {winner.year}
+                        </span>
+                        <span className="text-[#F5F1E8] flex-1">{winner.names.join(' & ')}</span>
+                        <Sparkles className="w-4 h-4 text-[#C9A84C] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
@@ -129,93 +185,31 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
 
       <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Trophy Visualization */}
-        <div className="relative">
-          <div className="aspect-square max-w-lg mx-auto relative">
+        <div className="relative" ref={trophyImageRef}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="aspect-square max-w-lg mx-auto relative"
+          >
             {/* Trophy Base/Image */}
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#141827] to-[#0C0F1A] border border-[#2a3142] overflow-hidden">
-              {/* Trophy Image Placeholder with SVG Overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Trophy className="w-48 h-48 text-[#C9A84C]/20" />
-              </div>
+              {/* Trophy Image */}
+              <img
+                src="/trophy-photo.jpg"
+                alt="Ladies Doubles Championship Trophy"
+                className="absolute inset-0 w-full h-full object-cover opacity-60"
+              />
               
-              {/* SVG Overlay for Winner Regions */}
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-                {/* Grid Lines */}
-                <line x1="50" y1="10" x2="50" y2="90" stroke="#2a3142" strokeWidth="0.5" strokeDasharray="2" />
-                <line x1="10" y1="50" x2="90" y2="50" stroke="#2a3142" strokeWidth="0.5" strokeDasharray="2" />
-                
-                {/* Era Regions */}
-                {TROPHY_ERAS.map((era) => {
-                  const coords = REGION_COORDS[era.id as keyof typeof REGION_COORDS];
-                  const isActive = activeEra === era.id;
-                  const isHovered = hoveredEra === era.id;
-                  
-                  return (
-                    <g key={era.id}>
-                      {/* Region Rectangle */}
-                      <rect
-                        x={coords.x}
-                        y={coords.y}
-                        width={coords.width}
-                        height={coords.height}
-                        fill={isActive ? `${era.color}20` : `${era.color}05`}
-                        stroke={isActive ? era.color : isHovered ? `${era.color}80` : '#2a3142'}
-                        strokeWidth={isActive ? 2 : 1}
-                        className="cursor-pointer transition-all duration-300"
-                        onClick={() => handleEraClick(era.id)}
-                        onMouseEnter={() => setHoveredEra(era.id)}
-                        onMouseLeave={() => setHoveredEra(null)}
-                        rx="4"
-                      />
-                      
-                      {/* Era Label */}
-                      <text
-                        x={coords.labelX}
-                        y={coords.labelY}
-                        textAnchor="middle"
-                        fill={isActive ? era.color : '#F5F1E8'}
-                        fontSize="4"
-                        fontWeight={isActive ? 'bold' : 'normal'}
-                        className="pointer-events-none"
-                      >
-                        {era.yearStart}-{era.yearEnd}
-                      </text>
-                      
-                      {/* Era Name */}
-                      <text
-                        x={coords.x + coords.width / 2}
-                        y={coords.y + coords.height / 2}
-                        textAnchor="middle"
-                        fill={isActive ? '#F5F1E8' : '#F5F1E880'}
-                        fontSize="3"
-                        className="pointer-events-none"
-                      >
-                        {era.name}
-                      </text>
-                      
-                      {/* Active Indicator */}
-                      {isActive && (
-                        <motion.circle
-                          layoutId="activeIndicator"
-                          cx={coords.x + coords.width - 5}
-                          cy={coords.y + 5}
-                          r="2"
-                          fill={era.color}
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        />
-                      )}
-                    </g>
-                  );
-                })}
-                
-                {/* Center Decoration */}
-                <circle cx="50" cy="50" r="8" fill="#C9A84C20" stroke="#C9A84C" strokeWidth="1" />
-                <text x="50" y="51" textAnchor="middle" fill="#C9A84C" fontSize="4" fontWeight="bold">
-                  77+
-                </text>
-              </svg>
+              {/* Region Overlay */}
+              <TrophyRegionOverlay
+                activeRegion={activeRegion}
+                highlightedRegion={highlightedRegion}
+                onRegionClick={handleRegionClick}
+                onRegionHover={handleRegionHover}
+                className="absolute inset-0"
+              />
             </div>
             
             {/* Auto-rotate Control */}
@@ -226,7 +220,35 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
             >
               {isAutoRotating ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
             </button>
-          </div>
+
+            {/* Legend */}
+            <div className="absolute top-4 left-4 space-y-2">
+              {TROPHY_REGIONS.map((region) => (
+                <motion.button
+                  key={region.id}
+                  onClick={() => onEraClick(region.era)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    activeRegion === region.id || highlightedRegion === region.id
+                      ? 'bg-[#141827] shadow-lg'
+                      : 'bg-[#141827]/50 hover:bg-[#141827]'
+                  }`}
+                  style={{
+                    borderColor: region.highlight.color,
+                    borderWidth: activeRegion === region.id ? '2px' : '1px',
+                    color: activeRegion === region.id ? region.highlight.color : '#F5F1E8'
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: region.highlight.color }}
+                  />
+                  {region.years}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
           
           {/* Era Navigation */}
           <div className="flex items-center justify-center gap-4 mt-6">
@@ -238,16 +260,20 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
               <ChevronLeft className="w-5 h-5" />
             </button>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2" ref={eraTabsRef}>
               {TROPHY_ERAS.map((era) => (
                 <button
                   key={era.id}
-                  onClick={() => handleEraClick(era.id)}
+                  data-era={era.id}
+                  onClick={(e) => onEraClick(era.id, e)}
                   className={`w-3 h-3 rounded-full transition-all ${
                     activeEra === era.id 
-                      ? 'bg-[#C9A84C] scale-125' 
+                      ? 'scale-125' 
                       : 'bg-[#2a3142] hover:bg-[#F5F1E8]/30'
                   }`}
+                  style={{
+                    backgroundColor: activeEra === era.id ? getEraColor(era.id) : undefined
+                  }}
                   aria-label={`Select ${era.name}`}
                 />
               ))}
@@ -264,7 +290,33 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
         </div>
 
         {/* Era Details Panel */}
-        <div className="space-y-6">
+        <div className="space-y-6" ref={winnerListRef}>
+          {/* Era Tabs */}
+          <div className="flex flex-wrap gap-2">
+            {TROPHY_ERAS.map((era) => {
+              const region = getRegionByEra(era.id);
+              const isActive = activeEra === era.id;
+              return (
+                <button
+                  key={era.id}
+                  data-era={era.id}
+                  onClick={(e) => onEraClick(era.id, e)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? 'text-[#0C0F1A]'
+                      : 'bg-[#141827] text-[#F5F1E8]/70 hover:text-[#F5F1E8] border border-[#2a3142]'
+                  }`}
+                  style={{
+                    backgroundColor: isActive ? region?.highlight.color : undefined,
+                    borderColor: isActive ? region?.highlight.color : undefined
+                  }}
+                >
+                  {era.name}
+                </button>
+              );
+            })}
+          </div>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={currentEra.id}
@@ -279,9 +331,15 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
                 <div>
                   <div 
                     className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium mb-3"
-                    style={{ backgroundColor: `${currentEra.color}20`, color: currentEra.color }}
+                    style={{ 
+                      backgroundColor: `${getEraColor(currentEra.id)}20`, 
+                      color: getEraColor(currentEra.id) 
+                    }}
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentEra.color }} />
+                    <span 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: getEraColor(currentEra.id) }} 
+                    />
                     {currentEra.yearStart}-{currentEra.yearEnd}
                   </div>
                   <h3 className="text-2xl font-bold text-[#F5F1E8] font-['Playfair_Display']">
@@ -308,16 +366,27 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
-                    onClick={() => handleWinnerClick(winner)}
-                    className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-left ${
+                    onClick={(e) => onWinnerClick(winner, e)}
+                    className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all text-left group ${
                       selectedWinner?.year === winner.year
-                        ? 'bg-[#C9A84C]/20 border border-[#C9A84C]/50'
+                        ? 'border-2'
                         : 'bg-[#0C0F1A] border border-[#2a3142] hover:border-[#C9A84C]/30'
                     }`}
+                    style={{
+                      backgroundColor: selectedWinner?.year === winner.year 
+                        ? `${getEraColor(currentEra.id)}15` 
+                        : undefined,
+                      borderColor: selectedWinner?.year === winner.year 
+                        ? getEraColor(currentEra.id) 
+                        : undefined
+                    }}
                   >
                     <span 
                       className="w-12 h-12 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
-                      style={{ backgroundColor: `${currentEra.color}20`, color: currentEra.color }}
+                      style={{ 
+                        backgroundColor: `${getEraColor(currentEra.id)}20`, 
+                        color: getEraColor(currentEra.id) 
+                      }}
                     >
                       {winner.year}
                     </span>
@@ -331,6 +400,10 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
                         </p>
                       )}
                     </div>
+                    <Sparkles 
+                      className="w-4 h-4 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: getEraColor(currentEra.id) }}
+                    />
                     {winner.notes && (
                       <Info className="w-4 h-4 text-[#F5F1E8]/30 shrink-0" />
                     )}
@@ -347,18 +420,37 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                className="bg-gradient-to-br from-[#C9A84C]/20 to-[#C9A84C]/5 rounded-2xl border border-[#C9A84C]/30 p-6"
+                className="bg-gradient-to-br rounded-2xl border p-6"
+                style={{
+                  background: `linear-gradient(135deg, ${getEraColor(currentEra.id)}20 0%, ${getEraColor(currentEra.id)}05 100%)`,
+                  borderColor: `${getEraColor(currentEra.id)}40`
+                }}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <Trophy className="w-6 h-6 text-[#C9A84C]" />
-                  <h4 className="text-lg font-semibold text-[#F5F1E8]">
-                    Champion Details
-                  </h4>
+                  <div 
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${getEraColor(currentEra.id)}30` }}
+                  >
+                    <Trophy className="w-5 h-5" style={{ color: getEraColor(currentEra.id) }} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-[#F5F1E8]">
+                      Champion Details
+                    </h4>
+                    <p className="text-sm text-[#F5F1E8]/60">
+                      View highlighted on trophy
+                    </p>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[#F5F1E8]/60">Year</span>
-                    <span className="text-[#C9A84C] font-bold text-xl">{selectedWinner.year}</span>
+                    <span 
+                      className="font-bold text-xl"
+                      style={{ color: getEraColor(currentEra.id) }}
+                    >
+                      {selectedWinner.year}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[#F5F1E8]/60">Champions</span>
@@ -366,18 +458,6 @@ export default function WinnerMapping({ className = '' }: WinnerMappingProps) {
                       {selectedWinner.names.join(' & ')}
                     </span>
                   </div>
-                  {selectedWinner.event && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#F5F1E8]/60">Event</span>
-                      <span className="text-[#F5F1E8]/80">{selectedWinner.event}</span>
-                    </div>
-                  )}
-                  {selectedWinner.notes && (
-                    <div className="pt-3 border-t border-[#C9A84C]/20">
-                      <span className="text-[#F5F1E8]/60 text-sm block mb-1">Notes</span>
-                      <span className="text-[#F5F1E8]/80 text-sm">{selectedWinner.notes}</span>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}

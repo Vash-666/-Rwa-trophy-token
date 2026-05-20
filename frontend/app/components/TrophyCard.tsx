@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Trophy, ExternalLink, Loader2, Users, Calendar, Shield } from 'lucide-react';
+import { ExternalLink, Loader2, Users, Calendar, Shield } from 'lucide-react';
 import { useReadContract } from 'wagmi';
 import { TROPHY_NFT_ABI, TrophyNFT } from '../lib/contract';
 

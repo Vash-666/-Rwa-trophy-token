@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Trophy, Calendar, Users, MapPin, Shield, Clock, ExternalLink, ChevronRight, Award, History, Package } from 'lucide-react';
+import { Trophy, Calendar, Users, MapPin, Shield, Clock, ExternalLink, ChevronRight, Award, History, Package, ZoomIn, Sparkles } from 'lucide-react';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import WinnerMapping from '../components/WinnerMapping';
-import { getTrophyStats, TROPHY_ERAS } from '../lib/winners';
+import ImageLightbox from '../components/ImageLightbox';
+import TrophyRegionOverlay, { TROPHY_REGIONS } from '../components/TrophyRegionOverlay';
+import PointerLine from '../components/PointerLine';
+import { useTrophyInteraction } from '../hooks/useTrophyInteraction';
+import { getTrophyStats, TROPHY_ERAS, Winner } from '../lib/winners';
 
 const stats = getTrophyStats();
 
@@ -33,10 +37,43 @@ const provenanceHistory = [
 export default function TrophyDetail() {
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'provenance'>('overview');
   const [mounted, setMounted] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const winnerListRef = useRef<HTMLDivElement>(null);
+
+  const {
+    activeRegion,
+    highlightedRegion,
+    pointerLine,
+    trophyImageRef,
+    handleRegionClick,
+    handleRegionHover,
+    handleWinnerClick,
+    handleEraClick
+  } = useTrophyInteraction({ highlightDuration: 3000 });
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleWinnerListClick = useCallback((winner: Winner, e: React.MouseEvent) => {
+    const element = e.currentTarget as HTMLElement;
+    handleWinnerClick(winner.year, '', element);
+    
+    // Switch to history tab if not already there
+    if (activeTab !== 'history') {
+      setActiveTab('history');
+    }
+  }, [handleWinnerClick, activeTab]);
+
+  const handleEraTabClick = useCallback((eraId: string, e: React.MouseEvent) => {
+    const element = e.currentTarget as HTMLElement;
+    handleEraClick(eraId, element);
+  }, [handleEraClick]);
+
+  const getEraColor = (eraId: string) => {
+    const region = TROPHY_REGIONS.find(r => r.era === eraId);
+    return region?.highlight.color || '#C9A84C';
+  };
 
   if (!mounted) {
     return (
@@ -50,6 +87,22 @@ export default function TrophyDetail() {
     <main className="min-h-screen bg-[#0C0F1A]">
       <Navigation />
       
+      {/* Lightbox */}
+      <ImageLightbox
+        src="/trophy-photo.jpg"
+        alt="1947 Ladies Doubles Championship Shield"
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+
+      {/* Pointer Line Animation */}
+      <PointerLine
+        startElement={pointerLine.startElement}
+        endElement={trophyImageRef.current}
+        color={pointerLine.color}
+        isVisible={pointerLine.isVisible}
+      />
+
       {/* Breadcrumb & Back */}
       <section className="pt-28 pb-6 border-b border-[#2a3142]">
         <div className="container-custom">
@@ -73,16 +126,42 @@ export default function TrophyDetail() {
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
-              <div className="relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br from-[#141827] to-[#0C0F1A] border border-[#2a3142]">
+              {/* Main Image with Region Overlay */}
+              <div 
+                ref={trophyImageRef as React.RefObject<HTMLDivElement>}
+                className="relative aspect-[4/5] rounded-3xl overflow-hidden bg-gradient-to-br from-[#141827] to-[#0C0F1A] border border-[#2a3142] group cursor-zoom-in"
+                onClick={() => setLightboxOpen(true)}
+              >
                 {/* Real Trophy Image */}
                 <img 
                   src="/trophy-photo.jpg" 
                   alt="1947 Ladies Doubles Championship Shield"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                
+                {/* Region Overlay */}
+                <TrophyRegionOverlay
+                  activeRegion={activeRegion}
+                  highlightedRegion={highlightedRegion}
+                  onRegionClick={handleRegionClick}
+                  onRegionHover={handleRegionHover}
+                  className="absolute inset-0"
                 />
                 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0C0F1A]/80 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0C0F1A]/80 via-transparent to-transparent pointer-events-none" />
+                
+                {/* Zoom Hint */}
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
+                  className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                >
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#141827]/90 border border-[#2a3142] text-[#F5F1E8]">
+                    <ZoomIn className="w-5 h-5" />
+                    <span className="text-sm font-medium">Click to zoom</span>
+                  </div>
+                </motion.div>
                 
                 {/* Badge */}
                 <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-[#10B981]/20 border border-[#10B981]/50">
@@ -96,20 +175,53 @@ export default function TrophyDetail() {
                 <div className="absolute top-4 right-4 px-4 py-2 rounded-full bg-[#C9A84C] text-[#0C0F1A] font-bold text-sm">
                   Est. 1947
                 </div>
+
+                {/* Interactive Hint */}
+                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 text-xs text-[#F5F1E8]/60 pointer-events-none">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Click regions to explore eras</span>
+                </div>
               </div>
 
-              {/* Thumbnail Gallery - All showing same trophy */}
+              {/* Thumbnail Gallery */}
               <div className="grid grid-cols-4 gap-3">
                 {[1, 2, 3, 4].map((i) => (
                   <button
                     key={i}
-                    className="aspect-square rounded-xl overflow-hidden bg-[#141827] border border-[#2a3142] hover:border-[#C9A84C]/50 transition-all"
+                    onClick={() => setLightboxOpen(true)}
+                    className="aspect-square rounded-xl overflow-hidden bg-[#141827] border border-[#2a3142] hover:border-[#C9A84C]/50 transition-all group cursor-pointer"
                   >
                     <img 
                       src="/trophy-photo.jpg" 
                       alt={`Trophy view ${i}`}
-                      className="w-full h-full object-cover opacity-70 hover:opacity-100 transition-opacity"
+                      className="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity"
                     />
+                  </button>
+                ))}
+              </div>
+
+              {/* Era Legend */}
+              <div className="flex flex-wrap gap-2 justify-center">
+                {TROPHY_REGIONS.map((region) => (
+                  <button
+                    key={region.id}
+                    onClick={(e) => handleEraTabClick(region.era, e)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      activeRegion === region.id || highlightedRegion === region.id
+                        ? 'bg-[#141827] shadow-lg'
+                        : 'bg-[#141827]/50 hover:bg-[#141827]'
+                    }`}
+                    style={{
+                      borderColor: region.highlight.color,
+                      borderWidth: activeRegion === region.id ? '2px' : '1px',
+                      color: activeRegion === region.id ? region.highlight.color : '#F5F1E8'
+                    }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: region.highlight.color }}
+                    />
+                    {region.name}
                   </button>
                 ))}
               </div>
@@ -230,27 +342,103 @@ export default function TrophyDetail() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-4"
+                    ref={winnerListRef}
                   >
                     <p className="text-[#F5F1E8]/70 mb-4">
-                      This trophy spans four distinct eras of tennis history, each with its own 
-                      character and legendary champions.
+                      This trophy spans four distinct eras of tennis history. 
+                      <span className="text-[#C9A84C]"> Click any era or winner</span> to see 
+                      the corresponding section highlighted on the trophy image.
                     </p>
-                    <div className="space-y-3">
-                      {TROPHY_ERAS.map((era) => (
-                        <div
-                          key={era.id}
-                          className="p-4 rounded-xl bg-[#141827] border border-[#2a3142] hover:border-[#C9A84C]/30 transition-all"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-semibold text-[#F5F1E8]">{era.name}</h4>
-                            <span className="text-sm text-[#C9A84C]">{era.yearStart}-{era.yearEnd}</span>
-                          </div>
-                          <p className="text-sm text-[#F5F1E8]/60">{era.description}</p>
-                          <div className="mt-2 text-xs text-[#F5F1E8]/40">
-                            {era.winners.length} champions
-                          </div>
-                        </div>
-                      ))}
+                    
+                    {/* Era Tabs */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {TROPHY_ERAS.map((era) => {
+                        const isActive = activeRegion === era.id || highlightedRegion === era.id;
+                        return (
+                          <button
+                            key={era.id}
+                            onClick={(e) => handleEraTabClick(era.id, e)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              isActive
+                                ? 'text-[#0C0F1A]'
+                                : 'bg-[#141827] text-[#F5F1E8]/70 hover:text-[#F5F1E8] border border-[#2a3142]'
+                            }`}
+                            style={{
+                              backgroundColor: isActive ? getEraColor(era.id) : undefined,
+                              borderColor: isActive ? getEraColor(era.id) : undefined
+                            }}
+                          >
+                            {era.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Winners by Era */}
+                    <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+                      {TROPHY_ERAS.map((era) => {
+                        const isHighlighted = activeRegion === era.id || highlightedRegion === era.id;
+                        return (
+                          <motion.div
+                            key={era.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`p-4 rounded-xl border transition-all ${
+                              isHighlighted
+                                ? 'bg-[#141827]'
+                                : 'bg-[#0C0F1A]/50 border-[#2a3142]/50'
+                            }`}
+                            style={{
+                              borderColor: isHighlighted ? getEraColor(era.id) : undefined,
+                              borderWidth: isHighlighted ? '2px' : '1px'
+                            }}
+                          >
+                            <div 
+                              className="flex items-center justify-between mb-3 cursor-pointer"
+                              onClick={(e) => handleEraTabClick(era.id, e)}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span 
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: getEraColor(era.id) }}
+                                />
+                                <h4 className="font-semibold text-[#F5F1E8]">{era.name}</h4>
+                              </div>
+                              <span 
+                                className="text-sm font-medium"
+                                style={{ color: getEraColor(era.id) }}
+                              >
+                                {era.yearStart}-{era.yearEnd}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {era.winners.slice(0, 6).map((winner) => (
+                                <button
+                                  key={winner.year}
+                                  onClick={(e) => handleWinnerListClick(winner, e)}
+                                  className="text-left p-2 rounded-lg bg-[#0C0F1A] hover:bg-[#C9A84C]/10 border border-[#2a3142] hover:border-[#C9A84C]/30 transition-all text-xs"
+                                >
+                                  <span 
+                                    className="font-bold block"
+                                    style={{ color: getEraColor(era.id) }}
+                                  >
+                                    {winner.year}
+                                  </span>
+                                  <span className="text-[#F5F1E8]/70 truncate block">
+                                    {winner.names[0].split(' ').pop()}
+                                  </span>
+                                </button>
+                              ))}
+                              {era.winners.length > 6 && (
+                                <div className="flex items-center justify-center p-2 rounded-lg bg-[#0C0F1A] border border-[#2a3142] text-xs text-[#F5F1E8]/50">
+                                  +{era.winners.length - 6} more
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 )}
@@ -296,6 +484,13 @@ export default function TrophyDetail() {
                   <Trophy className="w-5 h-5" />
                   View in Gallery
                 </Link>
+                <button
+                  onClick={() => setLightboxOpen(true)}
+                  className="btn-outline"
+                >
+                  <ZoomIn className="w-5 h-5" />
+                  Full Screen
+                </button>
                 <a
                   href="#"
                   className="btn-outline"
